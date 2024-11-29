@@ -1,10 +1,10 @@
 from tqdm import tqdm
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
 import numpy as np
-from model.gpt2 import GPT2
+
+# TO DO DDP
+# https://jacksoncakes.com/2023/08/20/getting-started-with-distributed-data-parallel-in-pytorch-a-beginners-guide/
 
 
 class GPTTrainer:
@@ -12,7 +12,7 @@ class GPTTrainer:
     def __init__(self, gpt_model, lr, checkpoint_path="", wd=0.0):
 
         self.gpt_model = gpt_model
-        self.opt = torch.optim.Adam(gpt_model.parameters(), lr=lr, weight_decay=wd)
+        self.opt = torch.optim.Adam(self.gpt_model.parameters(), lr=lr, weight_decay=wd)
         self.checkpoint_path = checkpoint_path
 
         self.losses = []
@@ -28,10 +28,10 @@ class GPTTrainer:
         save_every=1,
     ):
         
-        counter = 0
-        val_step, best_val_step = 0, 0
+        counter, best_val_step = 0, 0
         best_val_loss = float(np.inf)
-        for i in range(max_iters):
+        pbar = tqdm(range(max_iters))
+        for i in pbar:
             inputs, targets = get_batch_fn("train", batch_size)
             # Train
             self.gpt_model.train()
@@ -50,7 +50,7 @@ class GPTTrainer:
             self.losses.append(iter_loss)
             self.val_losses.append(val_iter_loss)
 
-            print("Iter :{}/{} Train Loss {:.3e} / Eval Loss {:.3e}".format(i, max_iters, iter_loss, val_iter_loss))
+            pbar.set_description("Iter :{}/{} Train Loss {:.3e} / Eval Loss {:.3e}".format(i, max_iters, iter_loss, val_iter_loss))
 
             if val_iter_loss < best_val_loss:
                 counter = 0
