@@ -20,7 +20,6 @@ class GPTTrainer:
         self.val_losses = []
         self.parallel = False
 
-        print(checkpoint_path.endswith("/"))
         if checkpoint_path.endswith("/"):
             os.makedirs(checkpoint_path, exist_ok=True)
             print(f"Created checkpoint directory at {checkpoint_path}")
