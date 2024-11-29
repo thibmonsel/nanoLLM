@@ -6,13 +6,22 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from tqdm import tqdm
+from typing import Optional
+
 
 class MultiHeadSelfAttention(nn.Module):
     """
     Implementation of multiple head self attention layer.
     """
 
-    def __init__(self, n_heads, dim_emb, max_seq_len, dropout=0.0, flash=None):
+    def __init__(
+        self,
+        n_heads: int,
+        dim_emb: int,
+        max_seq_len: int,
+        dropout: Optional[float] = 0.0,
+        flash: Optional[bool] = None,
+    ) -> None:
         super().__init__()
         assert dim_emb % n_heads == 0
 
@@ -49,7 +58,7 @@ class MultiHeadSelfAttention(nn.Module):
         x = x.view(x.size()[:-2] + (self.dim_emb,))
         return x
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         seq_len = x.shape[1]
         q, k, v = self.att_weights(x).split(self.dim_emb, dim=2)
         q = self.separate_heads(q)
@@ -102,7 +111,14 @@ class FeedForwardBlock(nn.Module):
 
 class TransformerBlock(nn.Module):
 
-    def __init__(self, n_heads, dim_emb, max_seq_len, dropout=0.0, flash=None):
+    def __init__(
+        self,
+        n_heads: int,
+        dim_emb: int,
+        max_seq_len: int,
+        dropout: Optional[float] = 0.0,
+        flash: Optional[bool] = None,
+    ):
         super().__init__()
         self.attention = MultiHeadSelfAttention(
             n_heads, dim_emb, max_seq_len, dropout, flash
@@ -111,7 +127,7 @@ class TransformerBlock(nn.Module):
         self.mlp = FeedForwardBlock(dim_emb, 4 * dim_emb, dim_emb, [nn.GELU()])
         self.norm2 = nn.LayerNorm(dim_emb)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x + self.attention(self.norm1(x))
         x = x + self.mlp(self.norm2(x))
         return x
@@ -121,13 +137,13 @@ class GPT2(nn.Module):
 
     def __init__(
         self,
-        vocab_size,
-        max_seq_len,
-        dim_emb,
-        n_heads,
-        n_layers,
-        dropout=0.0,
-        flash=None,
+        vocab_size: int,
+        max_seq_len: int,
+        dim_emb: int,
+        n_heads: int,
+        n_layers: int,
+        dropout: Optional[float] = 0.0,
+        flash: Optional[bool] = None,
     ):
         super().__init__()
         self.max_seq_len = max_seq_len
@@ -142,7 +158,7 @@ class GPT2(nn.Module):
         self.emb_drop = nn.Dropout(dropout)
         self.final_linear = nn.Linear(dim_emb, vocab_size)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         assert (
             x.shape[1] <= self.max_seq_len
         ), f"Cannot forward sequence of length {x.shape[0]}, block size is only {self.max_seq_len}"
@@ -155,9 +171,15 @@ class GPT2(nn.Module):
         return self.final_linear(x)
 
     @torch.no_grad()
-    def generate(self, x, generation_length, temperature=1.0, top_k=None):
+    def generate(
+        self,
+        x: torch.Tensor,
+        generation_length: int,
+        temperature: Optional[float] = 1.0,
+        top_k: Optional[int] = None,
+    ) -> torch.Tensor:
         for _ in tqdm(range(generation_length)):
-            logits = self(x[:, -self.max_seq_len:])[:, -1]
+            logits = self(x[:, -self.max_seq_len :])[:, -1]
             # scale the logits with temperature
             logits /= temperature
             # optionally crop the logits to only show top k options
