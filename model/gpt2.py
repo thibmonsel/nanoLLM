@@ -1,34 +1,40 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from model.attention import MultiAttentionHead, MultiHeadSelfAttention
-from model.misc import MLP
+from model.attention import MultiHeadSelfAttention
 from tqdm import tqdm
+
+
+class FeedForwardBlock(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        mid_dim: int,
+        out_dim: int,
+        pointwise_mid_modules: list[nn.Module],
+    ) -> None:
+        super().__init__()
+        self.first_layer = nn.Linear(in_dim, mid_dim, bias=False)
+        self.mid = nn.ModuleList(pointwise_mid_modules)
+        self.second_layer = nn.Linear(mid_dim, out_dim, bias=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.first_layer(x)
+        for layer in self.mid:
+            x = layer(x)
+        x = self.second_layer(x)
+        return x
 
 
 class TransformerBlock(nn.Module):
 
-    def __init__(
-        self,
-        n_heads,
-        dim_emb,
-        max_seq_len,
-        ff_factor=4,
-        att_dropout=0.0,
-        resid_dropout=0.0,
-        fast=True,
-    ):
+    def __init__(self, n_heads, dim_emb, max_seq_len, dropout=0.0, flash=None):
         super().__init__()
-        if fast:
-            self.attention = MultiHeadSelfAttention(
-                n_heads, dim_emb, max_seq_len, att_dropout, resid_dropout
-            )
-        else:
-            self.attention = MultiAttentionHead(
-                n_heads, dim_emb, max_seq_len, att_dropout
-            )
+        self.attention = MultiHeadSelfAttention(
+            n_heads, dim_emb, max_seq_len, dropout, flash
+        )
         self.norm1 = nn.LayerNorm(dim_emb)
-        self.mlp = MLP(dim_emb, ff_factor, resid_dropout)
+        self.mlp = FeedForwardBlock(dim_emb, 4 * dim_emb, dim_emb, [nn.GELU()])
         self.norm2 = nn.LayerNorm(dim_emb)
 
     def forward(self, x):
@@ -46,8 +52,8 @@ class GPT2(nn.Module):
         dim_emb,
         n_heads,
         n_layers,
-        emb_dropout_freq=0.0,
-        fast=True,
+        dropout=0.0,
+        flash=None,
     ):
         super().__init__()
         self.max_seq_len = max_seq_len
@@ -55,12 +61,11 @@ class GPT2(nn.Module):
         self.pos_emb = nn.Embedding(max_seq_len, dim_emb)
         self.layers = nn.ModuleList(
             [
-                TransformerBlock(n_heads, dim_emb, max_seq_len, fast=fast)
+                TransformerBlock(n_heads, dim_emb, max_seq_len, dropout, flash)
                 for _ in range(n_layers)
             ]
         )
-        self.emb_drop = nn.Dropout(emb_dropout_freq)
-        # Linear projection on vocab size to have most likely next token
+        self.emb_drop = nn.Dropout(dropout)
         self.final_linear = nn.Linear(dim_emb, vocab_size)
 
     def forward(self, x):
@@ -72,6 +77,7 @@ class GPT2(nn.Module):
         x = self.emb_drop(token_emb + pos_emb)
         for layer in self.layers:
             x = layer(x)
+        # projection on vocab size to have most likely next token
         return self.final_linear(x)
 
     @torch.no_grad()
@@ -83,7 +89,7 @@ class GPT2(nn.Module):
             # optionally crop the logits to only show top k options
             if top_k is not None:
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                logits[logits < v[:, [-1]]] = -float('Inf')
+                logits[logits < v[:, [-1]]] = -float("Inf")
             # convert logits to probabilities
             prob = F.softmax(logits, dim=-1)
             # sample from the distribution
