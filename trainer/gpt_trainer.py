@@ -1,7 +1,8 @@
-from tqdm import tqdm
+import os 
 import torch
-import torch.nn.functional as F
 import numpy as np
+from tqdm import tqdm
+import torch.nn.functional as F
 
 # TO DO DDP
 # https://jacksoncakes.com/2023/08/20/getting-started-with-distributed-data-parallel-in-pytorch-a-beginners-guide/
@@ -18,6 +19,11 @@ class GPTTrainer:
         self.losses = []
         self.val_losses = []
         self.parallel = False
+
+        print(checkpoint_path.endswith("/"))
+        if checkpoint_path.endswith("/"):
+            os.makedirs(checkpoint_path, exist_ok=True)
+            print(f"Created checkpoint directory at {checkpoint_path}")
 
     def train(
         self,
