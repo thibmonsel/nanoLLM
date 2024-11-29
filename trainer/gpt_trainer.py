@@ -5,7 +5,7 @@ import numpy as np
 
 # TO DO DDP
 # https://jacksoncakes.com/2023/08/20/getting-started-with-distributed-data-parallel-in-pytorch-a-beginners-guide/
-
+# https://github.com/IDRIS-CNRS/DLO-JZ/blob/main/Jour4/tp_gros_models/dlojz.py
 
 class GPTTrainer:
 

@@ -3,6 +3,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+data/shakespeare_char/*.txt
+data/shakespeare_char/*.bin 
+data/shakespeare_char/*.pkl 
+
+data/shakespeare_word/*.txt
+data/shakespeare_word/*.bin 
+data/shakespeare_word/*.pkl 
+
+metadata/*
+
 # C extensions
 *.so
 
