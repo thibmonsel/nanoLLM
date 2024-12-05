@@ -24,13 +24,10 @@ addopts = "--jaxtyping-packages=torchdde,beartype.beartype(conf=beartype.Beartyp
 markers = ["slow"]
 
 [tool.ruff]
+exclude = ["notebooks"]
 extend-include = ["*.ipynb"]
 fixable = ["I001", "F401"]
 ignore = ["E402", "E721", "E731", "E741", "F722"]
 ignore-init-module-imports = true
 select = ["E", "F", "I001"]
 src = []
-
-[tool.pyright]
-reportIncompatibleMethodOverride = true
-include = ["nanoLLMs"]
