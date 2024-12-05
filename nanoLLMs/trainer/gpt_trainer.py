@@ -1,17 +1,17 @@
-import os 
-import torch
+import os
+
 import numpy as np
-from tqdm import tqdm
+import torch
 import torch.nn.functional as F
+from tqdm import tqdm
 
 # TO DO DDP
 # https://jacksoncakes.com/2023/08/20/getting-started-with-distributed-data-parallel-in-pytorch-a-beginners-guide/
 # https://github.com/IDRIS-CNRS/DLO-JZ/blob/main/Jour4/tp_gros_models/dlojz.py
 
+
 class GPTTrainer:
-
     def __init__(self, gpt_model, lr, checkpoint_path="", wd=0.0):
-
         self.gpt_model = gpt_model
         self.opt = torch.optim.Adam(self.gpt_model.parameters(), lr=lr, weight_decay=wd)
         self.checkpoint_path = checkpoint_path
@@ -32,7 +32,6 @@ class GPTTrainer:
         patience=50,
         save_every=1,
     ):
-        
         counter, best_val_step = 0, 0
         best_val_loss = float(np.inf)
         pbar = tqdm(range(max_iters))
@@ -40,22 +39,22 @@ class GPTTrainer:
             inputs, targets = get_batch_fn("train", batch_size)
             # Train
             self.gpt_model.train()
-            iter_loss = self.evaluate_batch(
-                inputs, targets
-            )
+            iter_loss = self.evaluate_batch(inputs, targets)
 
             # Valid
             self.gpt_model.eval()
             inputs, targets = get_batch_fn("val", batch_size)
             with torch.no_grad():
-                val_iter_loss = self.evaluate_batch(
-                    inputs, targets, train=False
-                )
+                val_iter_loss = self.evaluate_batch(inputs, targets, train=False)
 
             self.losses.append(iter_loss)
             self.val_losses.append(val_iter_loss)
 
-            pbar.set_description("Iter :{}/{} Train Loss {:.3e} / Eval Loss {:.3e}".format(i, max_iters, iter_loss, val_iter_loss))
+            pbar.set_description(
+                "Iter :{}/{} Train Loss {:.3e} / Eval Loss {:.3e}".format(
+                    i, max_iters, iter_loss, val_iter_loss
+                )
+            )
 
             if val_iter_loss < best_val_loss:
                 counter = 0
@@ -69,7 +68,11 @@ class GPTTrainer:
 
             if counter > patience:
                 print("Patience exhausted (i.e early stopping). Stopping training.")
-                print("Best validation loss: {:.3e} at iteration {}".format(best_val_loss, best_val_step))
+                print(
+                    "Best validation loss: {:.3e} at iteration {}".format(
+                        best_val_loss, best_val_step
+                    )
+                )
                 break
 
             counter += 1

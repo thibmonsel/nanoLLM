@@ -2,11 +2,12 @@
 Inspired from Kaparthy's tutorial https://github.com/karpathy/nanoGPT/tree/master"""
 
 import math
+from typing import Optional
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from tqdm import tqdm
-from typing import Optional
 
 
 class MultiHeadSelfAttention(nn.Module):
@@ -19,7 +20,7 @@ class MultiHeadSelfAttention(nn.Module):
         n_heads: int,
         dim_emb: int,
         max_seq_len: int,
-        dropout: Optional[float] = 0.0,
+        dropout: float = 0.0,
         flash: Optional[bool] = None,
     ) -> None:
         super().__init__()
@@ -40,7 +41,8 @@ class MultiHeadSelfAttention(nn.Module):
             print(
                 "WARNING: using slow attention. Flash Attention requires PyTorch >= 2.0"
             )
-            # causal mask to ensure that attention is only applied to the left in the input sequence
+            # causal mask to ensure that attention is only
+            # applied to the left in the input sequence
             self.register_buffer(
                 "mask",
                 torch.tril(torch.ones(max_seq_len, max_seq_len)).view(
@@ -110,13 +112,12 @@ class FeedForwardBlock(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-
     def __init__(
         self,
         n_heads: int,
         dim_emb: int,
         max_seq_len: int,
-        dropout: Optional[float] = 0.0,
+        dropout: float = 0.0,
         flash: Optional[bool] = None,
     ):
         super().__init__()
@@ -134,7 +135,6 @@ class TransformerBlock(nn.Module):
 
 
 class GPT2(nn.Module):
-
     def __init__(
         self,
         vocab_size: int,
@@ -142,7 +142,7 @@ class GPT2(nn.Module):
         dim_emb: int,
         n_heads: int,
         n_layers: int,
-        dropout: Optional[float] = 0.0,
+        dropout: float = 0.0,
         flash: Optional[bool] = None,
     ):
         super().__init__()
@@ -159,9 +159,10 @@ class GPT2(nn.Module):
         self.final_linear = nn.Linear(dim_emb, vocab_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        assert (
-            x.shape[1] <= self.max_seq_len
-        ), f"Cannot forward sequence of length {x.shape[0]}, block size is only {self.max_seq_len}"
+        assert x.shape[1] <= self.max_seq_len, f"""
+            Cannot forward sequence of length {x.shape[0]},
+            block size is only {self.max_seq_len}
+            """
         token_emb = self.token_emb(x)
         pos_emb = self.pos_emb(torch.arange(x.shape[1], device=x.device))
         x = self.emb_drop(token_emb + pos_emb)
