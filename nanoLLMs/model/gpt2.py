@@ -1,5 +1,7 @@
-"""Implementation of GPT2 like model.
-Inspired from Kaparthy's tutorial https://github.com/karpathy/nanoGPT/tree/master"""
+"""
+Implementation of GPT2 like model.
+Inspired from Kaparthy's tutorial https://github.com/karpathy/nanoGPT/tree/master
+"""
 
 import math
 from typing import Optional

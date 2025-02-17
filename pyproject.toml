@@ -3,14 +3,14 @@ name = "nanoLLMs"
 version = "0.1.0"
 description = "Implementation of nano LLMs (GTP and MAMBA architectures)"
 readme = "README.md"
-requires-python =">=3.11"
+requires-python =">=3.10"
 authors = [
   {name = "thibault monsel"},
 ]
 keywords = ["torch"]
 
 urls = {repository = "https://github.com/thibmonsel/nanoLLMs" }
-dependencies = ["torch>=2.1", "jaxtyping>=0.2.24", "typing_extensions>=4.5.0", "numpy", "tqdm", "matplotlib",]
+dependencies = ["torch>=2.1", "jaxtyping>=0.2.24", "typing_extensions>=4.5.0", "numpy", "tqdm", "matplotlib", "mambapy"]
 
 [build-system]
 requires = ["hatchling"]
