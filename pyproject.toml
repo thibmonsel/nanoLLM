@@ -10,7 +10,7 @@ authors = [
 keywords = ["torch"]
 
 urls = {repository = "https://github.com/thibmonsel/nanoLLMs" }
-dependencies = ["torch>=2.1", "jaxtyping>=0.2.24", "typing_extensions>=4.5.0", "numpy", "tqdm", "matplotlib", "mambapy"]
+dependencies = ["torch>=2.1", "jaxtyping>=0.2.24", "typing_extensions>=4.5.0", "numpy", "tqdm", "matplotlib", "mambapy", "requests", "tiktoken", "einops"]
 
 [build-system]
 requires = ["hatchling"]

@@ -1,64 +1,39 @@
-""" Adapted from https://github.com/ubermenchh/xLSTM"""
-
 import math
-from typing import Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from tqdm import tqdm
 
 
 class mLSTMCell(nn.Module):
-    def __init__(self, input_size, hidden_size, device="cpu"):
+    def __init__(self, input_size, hidden_size):
         super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.device = device
 
-        # Input, forget, and output gates
-        self.w_i = nn.Parameter(torch.randn(hidden_size, input_size, device=device))
-        self.w_f = nn.Parameter(torch.randn(hidden_size, input_size, device=device))
-        self.w_o = nn.Parameter(torch.randn(hidden_size, input_size, device=device))
-        self.b_i = nn.Parameter(torch.zeros(hidden_size, device=device))
-        self.b_f = nn.Parameter(torch.zeros(hidden_size, device=device))
-        self.b_o = nn.Parameter(torch.zeros(hidden_size, device=device))
+        # Input, forget, and output gates parameters
+        self.w_i = nn.Linear(input_size, hidden_size)
+        self.w_f = nn.Linear(input_size, hidden_size)
+        self.w_o = nn.Linear(input_size, hidden_size)
 
-        self.w_q = nn.Linear(input_size, hidden_size, device=device)
-        self.w_k = nn.Linear(input_size, hidden_size, device=device)
-        self.w_v = nn.Linear(input_size, hidden_size, device=device)
+        self.w_q = nn.Linear(input_size, hidden_size)
+        self.w_k = nn.Linear(input_size, hidden_size)
+        self.w_v = nn.Linear(input_size, hidden_size)
 
         self.reset_parameters()
 
     def reset_parameters(self):
-        for params in [
-            self.w_i,
-            self.w_f,
-            self.w_o,
-            self.w_q.weight,
-            self.w_k.weight,
-            self.w_v.weight,
-        ]:
-            nn.init.xavier_uniform_(params)
-
-        for params in [
-            self.b_i,
-            self.b_f,
-            self.b_o,
-            self.w_q.bias,
-            self.w_k.bias,
-            self.w_v.bias,
-        ]:
-            nn.init.zeros_(params)
+        for w in [self.w_i, self.w_f, self.w_o, self.w_q, self.w_k, self.w_v]:
+            nn.init.xavier_uniform_(w.weight)
+            nn.init.zeros_(w.bias)
 
     def forward(self, input, hx):
         h, c, n = hx
         # input gate (Eq. 25, p.5)
-        i_t = torch.exp(input @ self.w_i.T + self.b_i)
+        i_t = torch.exp(self.w_i(input))
         # forget gate (Eq. 26, p.5)
-        f_t = torch.sigmoid(input @ self.w_f.T + self.b_f)
+        f_t = torch.sigmoid(self.w_f(input))
         # output gate (Eq. 27, p.5)
-        o_t = torch.sigmoid(input @ self.w_o.T + self.b_o)
+        o_t = torch.sigmoid(self.w_o(input))
 
         # Compute query, key, value (Eq. 22, 23, 24, p.5)
         q_t = self.w_q(input)
@@ -80,18 +55,15 @@ class mLSTMCell(nn.Module):
 
 
 class mLSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, dropout=0.0, device="cpu"):
+    def __init__(self, input_size, hidden_size, num_layers, dropout=0.0):
         super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
-        self.device = device
         self.layers = nn.ModuleList(
             [
-                mLSTMCell(
-                    input_size if i == 0 else hidden_size, hidden_size, device=device
-                )
+                mLSTMCell(input_size if i == 0 else hidden_size, hidden_size)
                 for i in range(num_layers)
             ]
         )
@@ -102,9 +74,9 @@ class mLSTM(nn.Module):
         if hidden_state is None:
             hidden_state = [
                 (
-                    torch.zeros(bs, self.hidden_size, device=self.device),
-                    torch.zeros(bs, self.hidden_size, device=self.device),
-                    torch.zeros(bs, self.hidden_size, device=self.device),
+                    torch.zeros(bs, self.hidden_size, device=input.device),
+                    torch.zeros(bs, self.hidden_size, device=input.device),
+                    torch.zeros(bs, self.hidden_size, device=input.device),
                 )
                 for _ in range(self.num_layers)
             ]
@@ -123,14 +95,14 @@ class mLSTM(nn.Module):
 
 
 class xLSTMBlock(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, dropout=0.0, device="cpu"):
+    def __init__(self, input_size, hidden_size, num_layers, dropout=0.0):
         super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
 
-        self.lstm = mLSTM(input_size, hidden_size, num_layers, dropout, device)
+        self.lstm = mLSTM(input_size, hidden_size, num_layers, dropout)
 
         self.norm = nn.LayerNorm(hidden_size)
         self.act = nn.GELU()
@@ -151,15 +123,16 @@ class xLSTM(nn.Module):
         self,
         vocab_size,
         embed_dim,
+        block_size,
         hidden_size,
         num_layers,
         num_blocks,
         dropout=0.0,
-        device="cpu",
     ):
         super().__init__()
         self.vocab_size = vocab_size
         self.embed_dim = embed_dim
+        self.block_size = block_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.num_blocks = num_blocks
@@ -168,7 +141,7 @@ class xLSTM(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embed_dim)
         self.blocks = nn.ModuleList(
             [
-                xLSTMBlock(embed_dim, hidden_size, num_layers, dropout, device=device)
+                xLSTMBlock(embed_dim, hidden_size, num_layers, dropout)
                 for _ in range(self.num_blocks)
             ]
         )
@@ -184,27 +157,3 @@ class xLSTM(nn.Module):
         output_seq = self.output_layer(output_seq)
         return output_seq
         # return output_seq, hidden_state
-
-    @torch.no_grad()
-    def generate(
-        self,
-        x: torch.Tensor,
-        generation_length: int,
-        temperature: Optional[float] = 1.0,
-        top_k: Optional[int] = None,
-    ) -> torch.Tensor:
-        max_seq_len = 256
-        for _ in tqdm(range(generation_length)):
-            logits = self(x[:, -max_seq_len:])[:, -1]
-            # scale the logits with temperature
-            logits /= temperature
-            # optionally crop the logits to only show top k options
-            if top_k is not None:
-                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                logits[logits < v[:, [-1]]] = -float("Inf")
-            # convert logits to probabilities
-            prob = F.softmax(logits, dim=-1)
-            # sample from the distribution
-            cur_tokens = torch.multinomial(prob, num_samples=1)
-            x = torch.cat([x, cur_tokens], dim=-1)
-        return x
