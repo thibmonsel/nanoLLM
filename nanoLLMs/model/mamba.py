@@ -20,7 +20,7 @@ L : sequence length size
 D / `d_model` : number of channels in our input x(t)
 E / `expand`: expansion factor (Section 3.4)
 N / `d_state`: latent state size h(t)
-d_conv : convolution filter size in Mamba block
+kernel_size : convolution filter size in Mamba block
 """
 
 
@@ -30,7 +30,7 @@ class MambaBlock(nn.Module):
         d_model: int,
         expand: int,
         kernel_size: int,
-        conv_bias: int,
+        conv_bias: bool,
         dt_rank: Union[int, str],
         d_state: int,
         bias: bool,
@@ -47,10 +47,13 @@ class MambaBlock(nn.Module):
         self.expand = expand
         self.conv_bias = conv_bias
         self.kernel_size = kernel_size
-        self.dt_rank = dt_rank
-        if self.dt_rank == "auto":
-            self.dt_rank: int = math.ceil(self.d_model / 16)
-
+        if isinstance(dt_rank, str):
+            if self.dt_rank == "auto":
+                self.dt_rank: int = math.ceil(self.d_model / 16)
+            else:
+                raise ValueError
+        else:
+            self.dt_rank: int = dt_rank
         self.d_state = d_state
         self.bias = bias
 
@@ -97,10 +100,10 @@ class MambaBlock(nn.Module):
             torch.arange(1, self.d_state + 1), "n -> d n", d=self.expand * self.d_model
         )
         self.A_log = nn.Parameter(torch.log(A))
-        self.A_log._no_weight_decay = True
+        self.A_log._no_weight_decay = True  # type: ignore
 
         self.D = nn.Parameter(torch.ones(self.expand * self.d_model))
-        self.D._no_weight_decay = True
+        self.D._no_weight_decay = True  # type: ignore
 
         # projects block output from ED back to D
         self.out_proj = nn.Linear(
@@ -276,7 +279,10 @@ class MambaBlock(nn.Module):
         cache: Tuple[
             Float[torch.Tensor, "B ED N"], Float[torch.Tensor, "B ED d_conv-1"]
         ],
-    ) -> Tuple[Float[torch.Tensor, "B D"], Float[torch.Tensor, "B ED d_conv-1"]]:
+    ) -> Tuple[
+        Float[torch.Tensor, "B D"],
+        Tuple[Float[torch.Tensor, "B D"], Float[torch.Tensor, "B ED d_conv-1"]],
+    ]:
         h, inputs = cache
 
         xz = self.in_proj(x)
@@ -343,7 +349,7 @@ class Mamba(nn.Module):
         d_model: int,
         expand: int,
         kernel_size: int,
-        conv_bias: int,
+        conv_bias: bool,
         dt_rank: Union[int, str],
         d_state: int,
         bias: bool,
@@ -360,7 +366,7 @@ class Mamba(nn.Module):
     ):
         super().__init__()
 
-        if pad_vocab_size_multiple != None and (
+        if pad_vocab_size_multiple is not None and (
             vocab_size % pad_vocab_size_multiple != 0
         ):
             vocab_size += pad_vocab_size_multiple - vocab_size % pad_vocab_size_multiple
@@ -429,7 +435,8 @@ class RMSNorm(nn.Module):
         self.use_mup = use_mup
         self.eps = eps
 
-        # https://arxiv.org/abs/2404.05728, RMSNorm gains prevents muTransfer (section 4.2.3)
+        # https://arxiv.org/abs/2404.05728,
+        # RMSNorm gains prevents muTransfer (section 4.2.3)
         if not use_mup:
             self.weight = nn.Parameter(torch.ones(d_model))
 

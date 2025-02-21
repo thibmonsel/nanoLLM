@@ -27,7 +27,8 @@ class Trainer:
                 if self.local_rank == 0:
                     os.makedirs(checkpoint_path, exist_ok=True)
                     print(
-                        f"Created checkpoint directory at {checkpoint_path} on rank {self.local_rank}"
+                        f"Created checkpoint directory at {checkpoint_path} "
+                        f"on rank {self.local_rank}"
                     )
 
             else:
@@ -93,11 +94,11 @@ class Trainer:
                 counter = 0
                 best_val_step = i
                 best_val_loss = val_iter_loss
-                self.save(name="best_model.pt")
+                self.save(name=self.llm_model.__class__.__name__ + "_best_model.pt")
 
             # Save last model
             if i % save_every == 0:
-                self.save(name="last_model.pt")
+                self.save(name=self.llm_model.__class__.__name__ + "last_model.pt")
 
             if counter > patience:
                 print("Patience exhausted (i.e early stopping). Stopping training.")
