@@ -1,54 +1,79 @@
+import argparse
 import os
-import pickle
 
 import matplotlib.pyplot as plt
 import torch
-from nanoLLMs.misc import get_batch
-from nanoLLMs.model.gpt2 import GPT2
+from datasets import load_dataset
+from nanoLLMs.misc import generate_text, get_batch, get_batch_hf_dataset
+from nanoLLMs.model import GPT2
 from nanoLLMs.trainer import Trainer
+from transformers import GPT2TokenizerFast
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Training LLM on Wikipedia scrapped data"
+    )
+    parser.add_argument("--data_dir_path", type=str)
+    parser.add_argument("--model", choices=["mamba", "gpt", "xlstm"])
+    args = parser.parse_args()
 
-data_dir = "nanoGPT/data/shakespeare_char/"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-meta_path = os.path.join(data_dir, "meta.pkl")
-vocab_size = None
-if os.path.exists(meta_path):
-    with open(meta_path, "rb") as f:
-        meta = pickle.load(f)
-    vocab_size = meta["vocab_size"]
-    itos = meta["itos"]
-    stoi = meta["stoi"]
-    print(f"found vocab_size = {vocab_size} (inside {meta_path})")
+    tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+    vocab_size = tokenizer.vocab_size
+    ds = load_dataset("wikimedia/wikipedia", "20231101.en")
 
-encode = lambda s: torch.tensor([stoi[c] for c in s])
-decode = lambda l: "".join([itos[i] for i in l])
+    # Loading trained tokenizer
+    # tokenizer = BasicTokenizer()
+    # tokenizer_file_path = os.path.join(os.path.dirname(__file__), str(args.data_dir_path), "kings_tokenizer.model")
+    # tokenizer.load(tokenizer_file_path)
+    # vocab_size = len(tokenizer.vocab)
 
-block_size = 256
-n_layer, n_head, n_embd, dropout = 6, 6, 384, 0.0
+    data_dir = os.path.join(os.path.dirname(__file__), str(args.data_dir_path))
+    partial_get_batch = lambda split, batch_size: get_batch_hf_dataset(
+        ds, split, batch_size, device, block_size, tokenizer
+    )
 
-partial_get_batch = lambda split, batch_size: get_batch(
-    data_dir, split, batch_size, device, block_size
-)
+    if args.model == "gpt":
+        block_size = 256
+        n_layer, n_head, n_embd, dropout = 6, 6, 384, 0.0
+        model = GPT2(vocab_size, block_size, n_embd, n_head, n_layer)
+        model.to(device)
+    elif args.model == "mamba":
+        pass
+    elif args.model == "xlstm":
+        pass
+    else:
+        raise ValueError
 
-model = GPT2(vocab_size, block_size, n_embd, n_head, n_layer)
-model.to(device)
+    # training hyperparameters
+    lr, ddp, checkpoint_path, wd = 1e-4, True, "metadata/wikimedia/", 1e-7
+    max_iters, batch_size, patience, save_every = 2, 128, 10000, 500
+    # generation hyperparameters
+    generation_length, temperature = 256, 1.0
 
-trainer = Trainer(
-    model, 1e-3, parallel=True, checkpoint_path="metadata/shakespeare_char/", wd=0.0
-)
+    trainer = Trainer(model, lr, ddp=ddp, checkpoint_path=checkpoint_path, wd=wd)
+    trainer.train(
+        get_batch,
+        max_iters=max_iters,
+        batch_size=batch_size,
+        patience=patience,
+        save_every=save_every,
+    )
 
-trainer.train(get_batch, max_iters=5000, batch_size=128, patience=5000, save_every=200)
+    save_filename = (
+        trainer.checkpoint_path + trainer.llm_model.module.__class__.name + "_loss.png"
+        if ddp
+        else trainer.checkpoint_path + trainer.llm_model.__class__.name + "_loss.png"
+    )
+    plt.plot(trainer.losses, label="train")
+    plt.plot(trainer.val_losses, label="val")
+    plt.legend()
+    plt.savefig(save_filename)
 
-dic_load = trainer.load("last_model.pt")
+    # dic_load = trainer.load("last_model.pt")
 
-x = torch.randint(0, vocab_size, (1, 1)).long().to(device)
-x = encode("shall i compare thee to a summer's day?\n")
-x = x.view(1, -1).to(device)
-y = trainer.gpt_model.generate(x, 256)
-
-print(x, decode(y[0].tolist()))
-plt.plot(trainer.losses, label="train")
-plt.plot(trainer.val_losses, label="val")
-plt.legend()
-plt.savefig(trainer.checkpoint_path + "loss.png")
+    x = tokenizer.encode("The moon landing ")
+    x = x.view(1, -1).to(device)
+    y = generate_text(trainer.llm_model, x, generation_length, temperature=temperature)
+    print("Generated sample :", tokenizer.decode(y[0].tolist()))

@@ -7,9 +7,11 @@ data/shakespeare_char/*.txt
 data/shakespeare_char/*.bin 
 data/shakespeare_char/*.pkl 
 
-data/shakespeare_word/*.txt
-data/shakespeare_word/*.bin 
-data/shakespeare_word/*.pkl 
+data/wiki_kings/*.txt
+data/wiki_kings/*.bin 
+data/wiki_kings/*.pkl 
+data/wiki_kings/*.vocab 
+data/wiki_kings/*.model
 
 data/lotr/*
 
