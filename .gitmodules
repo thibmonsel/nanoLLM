@@ -1,3 +1,0 @@
-[submodule "minbpe"]
-	path = minbpe
-	url = https://github.com/karpathy/minbpe

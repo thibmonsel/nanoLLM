@@ -1,4 +1,4 @@
-"""Taken and modified from https://github.com/alxndrTL/mamba.py"""
+"""Inspired from https://github.com/alxndrTL/mamba.py"""
 
 import math
 from typing import Optional, Tuple, Union
@@ -112,6 +112,7 @@ class MambaBlock(nn.Module):
 
         if self.use_cuda:
             try:
+                # importing "official mamba scan" implemented by A.Gu
                 from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
 
                 self.selective_scan_cuda = selective_scan_fn

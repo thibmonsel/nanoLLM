@@ -70,6 +70,10 @@ coverage.xml
 .pytest_cache/
 cover/
 
+mamba/
+mamba.py/
+nanoGPT/
+
 # Translations
 *.mo
 *.pot

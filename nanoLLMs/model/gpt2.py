@@ -160,7 +160,9 @@ class GPT2(nn.Module):
         self.lm_head = nn.Linear(dim_emb, vocab_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        assert x.shape[1] <= self.block_size, f"""
+        assert (
+            x.shape[1] <= self.block_size
+        ), f"""
             Cannot forward sequence of length {x.shape[0]},
             block size is only {self.block_size}
             """
