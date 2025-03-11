@@ -23,7 +23,7 @@ To prepare the dataset, please run (which is the same command as in [nanoGPT](ht
 python data/shakespeare_char/prepare.py
 ```
 
-You may want to run small LLM to generate Shakespeare-like text, please check out the notebook `nanoLLMs/notebooks/shakespeare_char.ipynb` that trains GPT, Mamba and xLSTM models from scratch. 
+You may want to run small LLM to generate Shakespeare-like text, please check out the notebook `notebooks/shakespeare_char.ipynb` that trains GPT, Mamba and xLSTM models from scratch. 
 
 
 
