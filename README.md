@@ -18,7 +18,7 @@ Please run, the following command to install relevant dependencies:
 pip install .
 ```
 To prepare the dataset, please run (which is the same command as in [nanoGPT](https://github.com/karpathy/nanoGPT)).
-```python 
+```bash 
 
 python data/shakespeare_char/prepare.py
 ```
