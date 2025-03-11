@@ -12,6 +12,38 @@ def inv_softplus(x):
     return x + torch.log(-torch.expm1(-x))
 
 
+def get_batch_saleforce(ds, split, batch_size, device, block_size, tokenizer=None):
+    if tokenizer is None:
+        tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+
+    tokenizer.pad_token = tokenizer.eos_token
+
+    if split == "train":
+        ds = ds["train"]
+    elif split == "val":
+        ds = ds["validation"]
+
+    indices = torch.randint(low=0, high=len(ds), size=(batch_size,))
+    batch_texts = ds.select(indices.tolist())["text"]
+    # Tokenize and truncate
+    batch_tokens = tokenizer(
+        batch_texts,
+        padding="max_length",
+        truncation=True,
+        max_length=block_size + 1,
+        return_tensors="pt",
+    )
+
+    # Convert to input (x) and target (y) sequences
+    x = batch_tokens["input_ids"][:, :-1]  # Remove last token for input
+    y = batch_tokens["input_ids"][:, 1:]  # Shift left for target
+
+    # Move to device
+    x, y = x.to(device), y.to(device)
+
+    return x, y
+
+
 def get_batch(
     data_dir, split, batch_size, device, block_size, openai_gpt2_tokenizer=False
 ):
@@ -59,13 +91,20 @@ def get_batch_hf_dataset(ds, split, batch_size, device, block_size, tokenizer=No
     if tokenizer is None:
         tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
 
+    tokenizer.pad_token = tokenizer.eos_token
+
     # Load dataset split
-    dataset = ds[split]  # e.g., ds["train"] or ds["validation"]
 
+    dataset = ds["train"]
     # Sample random batch indices
-    indices = torch.randint(len(dataset), (batch_size,))
-    batch_texts = [dataset[i]["text"] for i in indices]
+    if split == "train":
+        low = int(0.9 * len(dataset))
+    elif split == "val":
+        low = 0
 
+    indices = torch.randint(low=low, high=len(dataset), size=(batch_size,))
+    # batch_texts = [dataset[i]["text"] for i in indices]
+    batch_texts = dataset.select(indices.tolist())["text"]
     # Tokenize and truncate
     batch_tokens = tokenizer(
         batch_texts,
