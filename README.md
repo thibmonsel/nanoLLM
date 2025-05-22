@@ -1,4 +1,4 @@
-# WIP - nanoLLMs
+# nanoLLMs
 
 Implementation of three different type of LLMs that are [GPT2](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) , [Mamba](https://arxiv.org/pdf/2312.00752) and [xLSTM](https://arxiv.org/pdf/2405.04517).
 
